@@ -1,0 +1,40 @@
+# config.toml — bootc-image-builder en mode INTERACTIF (façon Fedora classique)
+#
+# Pourquoi ce fichier existe :
+# --type anaconda-iso est SANS SURVEILLANCE par défaut : sans kickstart, ou avec
+# un kickstart contenant clearpart/autopart/zerombr, Anaconda efface le PREMIER
+# disque trouvé sans demander langue, clavier, disque ou user.
+#
+# Avec un kickstart VIDE ci-dessous, bootc-image-builder injecte uniquement la
+# ligne `ostreecontainer` (qui dit d'installer NOTRE image), et n'ajoute AUCUN
+# ordre d'effacement / partitionnement / reboot auto.
+# Résultat : Anaconda s'ouvre sur son hub interactif classique et ATTEND :
+#  - choix de la langue
+#  - choix du clavier
+#  - choix du disque + partitionnement (auto ou manuel)
+#  - création user / mot de passe root
+# Rien n'est écrit tant que vous ne cliquez pas "Begin Installation".
+#
+# NE PAS ajouter ici clearpart, autopart, zerombr, reboot, shutdown, user, etc.
+# sauf si vous voulez sciemment un installateur automatique qui efface.
+# Ne pas non plus mélanger [customizations.user] avec [customizations.installer.kickstart].
+
+[customizations.installer.modules]
+# Modules actifs par défaut : Network, Payloads, Security, Services, Storage, Users
+# On ajoute Localization (langue/clavier), Timezone (heure), Runtime (%post bootc)
+# pour retrouver le hub complet façon Fedora classique / Silverblue :
+# langue, clavier, date/heure, disque, réseau, user/root.
+enable = [
+  "org.fedoraproject.Anaconda.Modules.Localization",
+  "org.fedoraproject.Anaconda.Modules.Timezone",
+  "org.fedoraproject.Anaconda.Modules.Runtime",
+  "org.fedoraproject.Anaconda.Modules.Network",
+  "org.fedoraproject.Anaconda.Modules.Payloads",
+  "org.fedoraproject.Anaconda.Modules.Security",
+  "org.fedoraproject.Anaconda.Modules.Services",
+  "org.fedoraproject.Anaconda.Modules.Storage",
+  "org.fedoraproject.Anaconda.Modules.Users",
+]
+
+[customizations.installer.kickstart]
+contents = ""

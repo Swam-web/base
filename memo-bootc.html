@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Mémo bootc quotidien</title>
+<style>
+body { font-family: sans-serif; font-size: 11pt; margin: 2cm; color: #111; }
+h1 { font-size: 20pt; border-bottom: 2px solid #333; }
+h2 { font-size: 14pt; color: #0b5cad; margin-top: 1.2em; }
+pre { background: #f2f2f2; padding: 8px; font-size: 9.5pt; border-left: 3px solid #0b5cad; white-space: pre-wrap; }
+p.legende { margin: 2px 0 10px 0; }
+b.cmd { font-family: monospace; }
+@media print {
+  @page { size: A4; margin: 1.8cm; @bottom-center { content: counter(page) " / " counter(pages); font-size: 9pt; color: #555; } }
+  h1, h2 { break-after: avoid; }
+  pre, p.legende { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<h1>Mémo bootc — commandes quotidiennes</h1>
+<p>Image Fedora 44 bootc + CachyOS + Nvidia 615. Système en lecture seule sur /usr : on ne fait plus <b>dnf install</b> au quotidien, on met à jour l'image.</p>
+
+<h2>1. État et mises à jour système</h2>
+<pre>sudo bootc status</pre>
+<p class="legende"><b>Usage :</b> voir le déploiement actuel et celui en attente. <b>Résultat :</b> image active, version, rollback dispo.</p>
+<pre>sudo bootc update</pre>
+<p class="legende"><b>Usage :</b> télécharger et préparer la nouvelle image. <b>Résultat :</b> appliquée au prochain reboot, l'ancienne reste pour rollback.</p>
+<pre>sudo bootc upgrade</pre>
+<p class="legende"><b>Usage :</b> alias de update. <b>Résultat :</b> idem.</p>
+<pre>sudo bootc rollback</pre>
+<p class="legende"><b>Usage :</b> revenir au déploiement précédent. <b>Résultat :</b> actif après reboot, sans perdre de données /home.</p>
+<pre>sudo bootc usr-overlay</pre>
+<p class="legende"><b>Usage :</b> rendre /usr modifiable pour TESTER un paquet. <b>Résultat :</b> perdu au reboot, à intégrer au Containerfile si concluant.</p>
+
+<h2>2. Build image + ISO (recette)</h2>
+<pre>./build.sh localhost/mon-bootc:latest 2>&1 | tee build.log</pre>
+<p class="legende"><b>Usage :</b> construit l'image puis l'ISO Anaconda dans ./output. <b>Résultat :</b> output/*.iso interactive.</p>
+<pre>sudo podman images</pre>
+<p class="legende"><b>Usage :</b> lister les images locales. <b>Résultat :</b> vérifie que ton tag existe avant le build ISO.</p>
+
+<h2>3. Flatpak et firmwares</h2>
+<pre>sudo ./install-flatpaks.sh</pre>
+<p class="legende"><b>Usage :</b> installe Bazaar, Extension Manager, Gearlever, Heroic, ProtonUp-Qt. <b>Résultat :</b> 5 apps Flathub système.</p>
+<pre>flatpak update</pre>
+<p class="legende"><b>Usage :</b> mettre à jour les apps. <b>Résultat :</b> apps à jour sans toucher l'image.</p>
+<pre>fwupdmgr get-updates &amp;&amp; fwupdmgr update</pre>
+<p class="legende"><b>Usage :</b> firmwares matériels. <b>Résultat :</b> BIOS, SSD, dock à jour.</p>
+
+<h2>4. Snapper et btrfs</h2>
+<pre>sudo snapper -c root create-config / ; sudo snapper -c home create-config /home</pre>
+<p class="legende"><b>Usage :</b> une seule fois au 1er boot. <b>Résultat :</b> snapshots auto pre/post via dnf5.</p>
+<pre>sudo snapper ls ; sudo snapper -c home ls</pre>
+<p class="legende"><b>Usage :</b> lister les snapshots. <b>Résultat :</b> paires pre/post avant chaque transaction.</p>
+<pre>sudo btrfs scrub start -B /</pre>
+<p class="legende"><b>Usage :</b> vérification checksums manuelle. <b>Résultat :</b> erreurs détectées tôt, timer mensuel déjà actif.</p>
+
+<h2>5. Gaming</h2>
+<pre>sudo WITH_GAMING=1 ./install-flatpaks.sh</pre>
+<p class="legende"><b>Usage :</b> stack gaming hors image (Steam, Heroic, Lutris, ProtonUp-Qt, Goverlay, MangoHud, vkBasalt) en Flatpak persistant. <b>Résultat :</b> jeux sans regonfler l'ISO.</p>
+<pre>gamemoderun mangohud %command%</pre>
+<p class="legende"><b>Usage :</b> options de lancement Steam. <b>Résultat :</b> governor perf + overlay FPS pendant le jeu.</p>
+<pre>flatpak run net.davidotek.pupgui2</pre>
+<p class="legende"><b>Usage :</b> ProtonUp-Qt. <b>Résultat :</b> installe GE-Proton pour Steam/Lutris/Heroic.</p>
+<pre>vulkaninfo | grep driverName ; gamemoded -t</pre>
+<p class="legende"><b>Usage :</b> vérifier GPU 4070 et GameMode. <b>Résultat :</b> driver Nvidia actif (post-install), daemon OK.</p>
+
+<h2>6. Disques</h2>
+<pre>lsblk -f</pre>
+<p class="legende"><b>Usage :</b> identifier disques et filesystems AVANT toute action. <b>Résultat :</b> jamais de format sur le mauvais disque.</p>
+<pre>sudo setup-second-disk.sh</pre>
+<p class="legende"><b>Usage :</b> monte le 2e NVMe en /mnt/data via fstab UUID. <b>Résultat :</b> auto-monté au boot, plus de mot de passe. Ne formate jamais.</p>
+
+<h2>7. Dépannage</h2>
+<pre>mokutil --sb-state</pre>
+<p class="legende"><b>Usage :</b> état Secure Boot. <b>Résultat :</b> doit être désactivé ou clé MOK enrôlée, sinon kmods Nvidia/DKMS rejetés.</p>
+<pre>journalctl -b -p err</pre>
+<p class="legende"><b>Usage :</b> erreurs du boot actuel. <b>Résultat :</b> piste driver/service en cause.</p>
+<pre>Grub → déploiement précédent</pre>
+<p class="legende"><b>Usage :</b> au boot, choisir l'ancien déploiement. <b>Résultat :</b> système qui marche, puis bootc rollback pour fixer.</p>
+<h2>8. Re-baker un pilote (sans réinstaller)</h2>
+<pre>sudo bootc switch --transport containers-storage localhost/mon-bootc:latest</pre>
+<p class="legende"><b>Usage :</b> après rebuild avec le driver remis dans le Containerfile. <b>Résultat :</b> /etc et /var conservés, seul /usr remplacé. Reboot derrière.</p>
+</body>
+</html>
