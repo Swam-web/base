@@ -12,12 +12,13 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/mon-bootc
+  # minuscules obligatoires (le owner GitHub a une majuscule)
+  IMAGE_NAME: swam-web/mon-bootc
 
 jobs:
   build:
-    # Pour runner maison : remplacer par [self-hosted]
-    runs-on: ubuntu-latest
+    # Runner maison (disque + muscle) — voir README runner.
+    runs-on: self-hosted
     permissions:
       contents: read
       packages: write
