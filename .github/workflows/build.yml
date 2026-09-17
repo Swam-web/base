@@ -1,13 +1,13 @@
-name: build-flavors
+name: build-flavor
 
-# Builds matrice des saveurs bootc. Pousse vers GHCR.
+# 1 branche = 1 saveur : base, nvidia, rocm, printer, full.
+# Push sur une branche => build de SA saveur -> GHCR :<branche>-<sha>.
 # Secrets requis : néant en public (GITHUB_TOKEN suffit pour GHCR public).
 # Images lourdes (~5 Go) : préfère un runner self-hosted (runs-on: self-hosted).
-# Pour tester vite avec le runner gratuit : ne garder que la matrice voulue.
 
 on:
   push:
-    branches: [main]
+    branches: [base, nvidia, rocm, printer, full]
   workflow_dispatch:
 
 env:
@@ -18,10 +18,6 @@ jobs:
   build:
     # Pour runner maison : remplacer par [self-hosted]
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        flavor: [base, nvidia, rocm, printer, full]
     permissions:
       contents: read
       packages: write
@@ -34,6 +30,24 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc || true
           df -h
 
+      - name: Saveur depuis la branche
+        id: flavor
+        run: |
+          case "${{ github.ref_name }}" in
+            base|nvidia|rocm|printer|full) echo "name=${{ github.ref_name }}" >> "$GITHUB_OUTPUT" ;;
+            *) echo "Branche ${{ github.ref_name }} non mappée"; exit 1 ;;
+          esac
+          n=0; r=0; p=0
+          case "${{ github.ref_name }}" in
+            nvidia) n=1 ;;
+            rocm) r=1 ;;
+            printer) p=1 ;;
+            full) n=1; r=1; p=1 ;;
+          esac
+          echo "nvidia=$n" >> "$GITHUB_OUTPUT"
+          echo "rocm=$r" >> "$GITHUB_OUTPUT"
+          echo "printer=$p" >> "$GITHUB_OUTPUT"
+
       - name: Login GHCR
         uses: docker/login-action@v3
         with:
@@ -41,17 +55,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Buildah build (saveur ${{ matrix.flavor }})
+      - name: Buildah build (saveur ${{ steps.flavor.outputs.name }})
         id: build
         uses: redhat-actions/buildah-build@v2
         with:
           image: ${{ env.IMAGE_NAME }}
-          tags: ${{ matrix.flavor }}-${{ github.sha }}
+          tags: ${{ steps.flavor.outputs.name }}-${{ github.sha }}
           containerfiles: ./Containerfile
           build-args: |
-            WITH_NVIDIA=${{ contains(fromJSON('["nvidia", "full"]'), matrix.flavor) && '1' || '0' }}
-            WITH_ROCM=${{ contains(fromJSON('["rocm", "full"]'), matrix.flavor) && '1' || '0' }}
-            WITH_PRINTER=${{ contains(fromJSON('["printer", "full"]'), matrix.flavor) && '1' || '0' }}
+            WITH_NVIDIA=${{ steps.flavor.outputs.nvidia }}
+            WITH_ROCM=${{ steps.flavor.outputs.rocm }}
+            WITH_PRINTER=${{ steps.flavor.outputs.printer }}
 
       - name: Push GHCR
         uses: redhat-actions/push-to-registry@v2
