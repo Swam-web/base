@@ -2,8 +2,8 @@ name: build-flavor
 
 # 1 branche = 1 saveur : base, nvidia, rocm, printer, full.
 # Push sur une branche => build de SA saveur -> GHCR :<branche>-<sha>.
+# Runner : self-hosted NixOS avec podman (pas de buildah/apt ici).
 # Secrets requis : néant en public (GITHUB_TOKEN suffit pour GHCR public).
-# Images lourdes (~5 Go) : préfère un runner self-hosted (runs-on: self-hosted).
 
 on:
   push:
@@ -17,7 +17,6 @@ env:
 
 jobs:
   build:
-    # Runner maison (disque + muscle) — voir README runner.
     runs-on: self-hosted
     permissions:
       contents: read
@@ -43,28 +42,19 @@ jobs:
           echo "rocm=$r" >> "$GITHUB_OUTPUT"
           echo "printer=$p" >> "$GITHUB_OUTPUT"
 
-      - name: Login GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Login GHCR (podman)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login "${{ env.REGISTRY }}" -u "${{ github.actor }}" --password-stdin
 
-      - name: Buildah build (saveur ${{ steps.flavor.outputs.name }})
-        id: build
-        uses: redhat-actions/buildah-build@v2
-        with:
-          image: ${{ env.IMAGE_NAME }}
-          tags: ${{ steps.flavor.outputs.name }}-${{ github.sha }}
-          containerfiles: ./Containerfile
-          build-args: |
-            WITH_NVIDIA=${{ steps.flavor.outputs.nvidia }}
-            WITH_ROCM=${{ steps.flavor.outputs.rocm }}
-            WITH_PRINTER=${{ steps.flavor.outputs.printer }}
+      - name: Podman build (saveur ${{ steps.flavor.outputs.name }})
+        run: |
+          podman build --pull=newer \
+            --build-arg "WITH_NVIDIA=${{ steps.flavor.outputs.nvidia }}" \
+            --build-arg "WITH_ROCM=${{ steps.flavor.outputs.rocm }}" \
+            --build-arg "WITH_PRINTER=${{ steps.flavor.outputs.printer }}" \
+            -t "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.flavor.outputs.name }}-${{ github.sha }}" \
+            -f ./Containerfile .
 
-      - name: Push GHCR
-        uses: redhat-actions/push-to-registry@v2
-        with:
-          image: ${{ steps.build.outputs.image }}
-          tags: ${{ steps.build.outputs.tags }}
-          registry: ${{ env.REGISTRY }}
+      - name: Podman push
+        run: |
+          podman push "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.flavor.outputs.name }}-${{ github.sha }}"
