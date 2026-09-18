@@ -1,41 +1,43 @@
 name: build boots
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [base, nvidia, rocm, printer]
+  workflow_dispatch: {}
 
 jobs:
-  base:
+  build-base:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build container
+      - name: Build bootc image (base)
         run: |
           chmod +x ./build/build.sh
           ./build/build.sh localhost/mon-bootc:latest base
   
-  nvidia:
+  build-nvidia:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build container
+      - name: Build bootc image (nvidia)
         run: |
           chmod +x ./build/build.sh
           WITH_NVIDIA=1 ./build/build.sh localhost/mon-bootc:nvidia nvidia
   
-  rocm:
+  build-rocm:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build container
+      - name: Build bootc image (rocm)
         run: |
           chmod +x ./build/build.sh
           WITH_ROCM=1 ./build/build.sh localhost/mon-bootc:rocm rocm
   
-  printer:
+  build-printer:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build container
+      - name: Build bootc image (printer)
         run: |
           chmod +x ./build/build.sh
           WITH_PRINTER=1 ./build/build.sh localhost/mon-bootc:printer printer
