@@ -23,10 +23,12 @@ set -euo pipefail
 IMAGE="${1:-localhost/mon-bootc:latest}"
 # Saveur : 2e arg, sinon fichier FLAVOR (une ligne : base|nvidia|rocm|printer|full),
 # sinon base.
-FLAVOR="${2:-$(cat ./FLAVOR 2>/dev/null || echo base)}"
+FLAVOR="${2:-$(cat "$(dirname "$0")/FLAVOR" 2>/dev/null || echo base)}"
 CONTAINERFILE="./Containerfile"
 CONFIG="./config.toml"
 OUTPUT_DIR="./output"
+# Ce script vit dans build/ — les chemins sont relatifs à la racine du projet.
+cd "$(dirname "$0")/.."
 BIB_IMAGE="quay.io/centos-bootc/bootc-image-builder:latest"
 
 # Saveur -> build-args (base = tout à 0). Les exports manuels

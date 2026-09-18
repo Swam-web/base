@@ -41,20 +41,37 @@ quay.io/fedora/fedora-bootc:44
 localhost/mon-bootc:latest → bootc-image-builder → output/*.iso
 ```
 
-## Fichiers
+## Structure
 
-- `Containerfile` : la recette, 20 étapes en 9 familles A–I
-- `build.sh` : build image puis ISO anaconda-iso interactive dans `./output/`
-- `config.toml` : kickstart vide, Anaconda demande langue, clavier, disque, user
-- `setup-second-disk.sh` : monte le 2e NVMe en `/mnt/data` par UUID, sans jamais formater
-- `install-flatpaks.sh` : Bazaar, Extension Manager, Gearlever, Heroic, ProtonUp-Qt
-- `memo-bootc.pdf` : mémo des commandes quotidiennes
+```
+.
+├── Containerfile              # recette image (20 étapes, 9 familles A–I)
+├── build/
+│   ├── build.sh               # build image + ISO anaconda-iso interactive
+│   ├── config.toml            # kickstart vide → Anaconda interactif
+│   ├── FLAVOR                 # saveur par défaut (base|nvidia|rocm|printer|full)
+│   └── output/                # ISO générée + manifest
+├── host-scripts/              # scripts post-install sur machine bootc
+│   ├── install-nvidia-host.sh # pilote Nvidia RPMFusion (akmod, 1er boot)
+│   ├── install-rocm-host.sh   # ROCm userspace AMD (1er boot, optionnel)
+│   ├── install-hplip-host.sh  # pilotes HP (1er boot, optionnel)
+│   ├── install-flatpaks.sh    # flatpaks utiles + gaming
+│   ├── setup-second-disk.sh   # monte 2e NVMe en /mnt/data par UUID
+│   └── update-gui.py          # GUI GTK4 mises à jour bootc + flatpak
+└── docs/                      # docs, tutoriels, mémo
+    ├── TUTO.md                # tutoriel FR complet
+    ├── TUTO.en.md             # tutoriel EN complet
+    ├── memo-bootc.html        # mémo commandes quotidiennes (à imprimer)
+    └── test-vm.md             # procédure de test en VM
+```
 
 ## Build et 1er boot
 
 ```
-./build.sh localhost/mon-bootc:latest 2>&1 | tee build.log
+cd build && ./build.sh localhost/mon-bootc:latest 2>&1 | tee build.log
 ```
+
+Saveurs : `base` · `nvidia` · `rocm` · `printer` · `full`.
 
 Tester l'ISO en VM snapshotée avant tout bare metal. Au 1er boot :
 `snapper` configs, `sudo setup-second-disk.sh`, `sudo install-flatpaks.sh`,

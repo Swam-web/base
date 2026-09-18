@@ -78,6 +78,8 @@ b.cmd { font-family: monospace; }
 <p class="legende"><b>Usage :</b> erreurs du boot actuel. <b>Résultat :</b> piste driver/service en cause.</p>
 <pre>Grub → déploiement précédent</pre>
 <p class="legende"><b>Usage :</b> au boot, choisir l'ancien déploiement. <b>Résultat :</b> système qui marche, puis bootc rollback pour fixer.</p>
+<pre>Clé USB install (RTX) : au menu GRUB, E, ajouter nomodeset, Ctrl+X</pre>
+<p class="legende"><b>Usage :</b> erreurs gsp/nouveau au boot bare metal (RTX 4070 non gérée par nouveau). <b>Résultat :</b> affichage simple, Anaconda voit les disques.</p>
 <h2>8. Re-baker un pilote (sans réinstaller)</h2>
 <pre>sudo bootc switch --transport containers-storage localhost/mon-bootc:latest</pre>
 <p class="legende"><b>Usage :</b> après rebuild avec le driver remis dans le Containerfile. <b>Résultat :</b> /etc et /var conservés, seul /usr remplacé. Reboot derrière.</p>

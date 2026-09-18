@@ -380,7 +380,7 @@ EORUN
 # puis pointer Steam dessus. Pas formaté dans l'image par sécu.
 # Script embarqué : sudo setup-second-disk.sh (écrit la fstab par UUID, plus de mot de passe après).
 # /usr/bin car /usr/local est un lien vers /var non persisté en bootc.
-COPY setup-second-disk.sh /usr/bin/setup-second-disk.sh
+COPY host-scripts/setup-second-disk.sh /usr/bin/setup-second-disk.sh
 RUN chmod 755 /usr/bin/setup-second-disk.sh
 
 # ######################################################################
