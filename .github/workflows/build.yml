@@ -22,7 +22,7 @@ jobs:
       - name: Build bootc image (nvidia)
         run: |
           chmod +x ./build/build.sh
-          SKIP_ISO=1 SKIP_ISO=1 WITH_Nvidia=1 ./build/build.sh localhost/mon-bootc:nvidia nvidia
+          SKIP_ISO=1 WITH_NVIDIA=1 ./build/build.sh localhost/mon-bootc:nvidia nvidia
   
   build-rocm:
     runs-on: ubuntu-latest
