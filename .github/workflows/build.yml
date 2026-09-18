@@ -13,7 +13,7 @@ jobs:
       - name: Build bootc image (base)
         run: |
           chmod +x ./build/build.sh
-          ./build/build.sh localhost/mon-bootc:latest base
+          SKIP_ISO=1 ./build/build.sh localhost/mon-bootc:latest base
   
   build-nvidia:
     runs-on: ubuntu-latest
@@ -22,7 +22,7 @@ jobs:
       - name: Build bootc image (nvidia)
         run: |
           chmod +x ./build/build.sh
-          WITH_NVIDIA=1 ./build/build.sh localhost/mon-bootc:nvidia nvidia
+          SKIP_ISO=1 WITH_Nvidia=1 ./build/build.sh localhost/mon-bootc:nvidia nvidia
   
   build-rocm:
     runs-on: ubuntu-latest
@@ -31,7 +31,7 @@ jobs:
       - name: Build bootc image (rocm)
         run: |
           chmod +x ./build/build.sh
-          WITH_ROCM=1 ./build/build.sh localhost/mon-bootc:rocm rocm
+          SKIP_ISO=1 WITH_ROCM=1 ./build/build.sh localhost/mon-bootc:rocm rocm
   
   build-printer:
     runs-on: ubuntu-latest
@@ -40,4 +40,4 @@ jobs:
       - name: Build bootc image (printer)
         run: |
           chmod +x ./build/build.sh
-          WITH_PRINTER=1 ./build/build.sh localhost/mon-bootc:printer printer
+          SKIP_ISO=1 WITH_PRINTER=1 ./build/build.sh localhost/mon-bootc:printer printer
