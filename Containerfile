@@ -33,6 +33,8 @@
 
 FROM quay.io/fedora/fedora-bootc:44
 
+LABEL name="mon-bootc"
+
 # SAVEURS (build-args, défaut 0 = base) :
 #   WITH_NVIDIA=1  -> pilote Nvidia RPMFusion baké (rebuild ensemble => pas de désync)
 #   WITH_ROCM=1    -> userspace AMD ROCm (sans kmod, safe)
