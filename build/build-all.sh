@@ -138,7 +138,7 @@ echo ""
 
 sudo podman run --rm -i \
   --privileged \
-  --pull=newer \
+  --pull=false \
   --security-opt label=type:unconfined_t \
   -v "$OUTPUT_DIR:/output" \
   -v "$CONFIG:/config.toml:ro" \
