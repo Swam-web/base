@@ -25,8 +25,8 @@ IMAGE="${1:-localhost/mon-bootc:latest}"
 # sinon base.
 FLAVOR="${2:-$(cat "$(dirname "$0")/FLAVOR" 2>/dev/null || echo base)}"
 CONTAINERFILE="./Containerfile"
-CONFIG="./config.toml"
-OUTPUT_DIR="./output"
+CONFIG="./build/config.toml"
+OUTPUT_DIR="./build/output"
 # Ce script vit dans build/ — les chemins sont relatifs à la racine du projet.
 cd "$(dirname "$0")/.."
 BIB_IMAGE="quay.io/centos-bootc/bootc-image-builder:latest"
@@ -77,8 +77,8 @@ sudo podman run --rm -it \
   --privileged \
   --pull=newer \
   --security-opt label=type:unconfined_t \
-  -v "$(pwd)/output:/output" \
-  -v "$(pwd)/config.toml:/config.toml:ro" \
+  -v "$OUTPUT_DIR:/output" \
+  -v "$CONFIG:/config.toml:ro" \
   -v /var/lib/containers/storage:/var/lib/containers/storage \
   "$BIB_IMAGE" \
   --type anaconda-iso \
