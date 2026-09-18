@@ -71,22 +71,37 @@ sudo podman build --pull=newer \
   --build-arg "WITH_PRINTER=${WITH_PRINTER:-0}" \
   -t "$IMAGE" -f "$CONTAINERFILE" .
 
-# --- 2. Build de l'ISO Anaconda interactive ---
-echo "==> [2/2] bootc-image-builder --type anaconda-iso (interactif)..."
-sudo podman run --rm -it \
-  --privileged \
-  --pull=newer \
-  --security-opt label=type:unconfined_t \
-  -v "$OUTPUT_DIR:/output" \
-  -v "$CONFIG:/config.toml:ro" \
-  -v /var/lib/containers/storage:/var/lib/containers/storage \
-  "$BIB_IMAGE" \
-  --type anaconda-iso \
-  --rootfs btrfs \
-  --config /config.toml \
-  "$IMAGE"
+# --- 2. Build de l'ISO Anaconda interactive (optionnel) ---
+# SKIP_ISO=1 désactive la génération ISO (utile sur CI / runners compatibles).
+if [[ "${SKIP_ISO:-0}" != "1" ]]; then
+  echo "==> [2/2] bootc-image-builder --type anaconda-iso (interactif)..."
+  sudo podman run --rm -i \
+    --privileged \
+    --pull=newer \
+    --security-opt label=type:unconfined_t \
+    -v "$OUTPUT_DIR:/output" \
+    -v "$CONFIG:/config.toml:ro" \
+    -v /var/lib/containers/storage:/var/lib/containers/storage \
+    "$BIB_IMAGE" \
+    --type anaconda-iso \
+    --rootfs btrfs \
+    --config /config.toml \
+    "$IMAGE"
+
+  echo ""
+  echo "==> [2/2] ISO générée dans $OUTPUT_DIR/"
+else
+  echo "==> [2/2] Génération ISO ignorée (SKIP_ISO=1)."
+  echo "    Pour générer l'ISO Anaconda interactive en local :"
+  echo "    cd build && ./build-all.sh"
+fi
 
 echo ""
-echo "OK : ISO créée dans $OUTPUT_DIR/"
+echo "OK : image locale construite pour $IMAGE (saveur $FLAVOR)."
+echo ""
+echo "L'ISO est INTERACTIVE grâce à config.toml : elle demande langue, clavier,"
+echo "disque et création user. Ne JAMAIS automatiser (clearpart/autopart/kickstart rempli)"
+echo "avec plusieurs disques : risque d'effacement du mauvais disque."
+echo ""
 echo "Prochain boot : en VM d'abord. Anaconda doit vous demander langue, clavier, disque, user."
 echo "Si Anaconda n'a rien demandé et a tout effacé, c'est que le kickstart n'était pas vide -> ne bootez pas sur hardware."

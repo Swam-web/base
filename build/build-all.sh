@@ -138,7 +138,7 @@ echo ""
 
 sudo podman run --rm -i \
   --privileged \
-  --pull=false \
+  --pull=never \
   --security-opt label=type:unconfined_t \
   -v "$OUTPUT_DIR:/output" \
   -v "$CONFIG:/config.toml:ro" \
@@ -147,6 +147,7 @@ sudo podman run --rm -i \
   --type anaconda-iso \
   --rootfs btrfs \
   --config /config.toml \
+  --transport containers-storage \
   "$IMAGE"
 
 echo ""
