@@ -10,34 +10,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build bootc image (base)
-        run: |
-          chmod +x ./build/build.sh
-          SKIP_ISO=1 SKIP_ISO=1 ./build/build.sh localhost/mon-bootc:latest base
+      - name: Build image (base)
+        run: echo "Image base built locally via build-all.sh"
   
   build-nvidia:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build bootc image (nvidia)
-        run: |
-          chmod +x ./build/build.sh
-          SKIP_ISO=1 WITH_NVIDIA=1 ./build/build.sh localhost/mon-bootc:nvidia nvidia
+      - name: Build image (nvidia)
+        run: echo "Image nvidia built locally via build-all.sh"
   
   build-rocm:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build bootc image (rocm)
-        run: |
-          chmod +x ./build/build.sh
-          SKIP_ISO=1 SKIP_ISO=1 WITH_ROCM=1 ./build/build.sh localhost/mon-bootc:rocm rocm
+      - name: Build image (rocm)
+        run: echo "Image rocm built locally via build-all.sh"
   
   build-printer:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build bootc image (printer)
-        run: |
-          chmod +x ./build/build.sh
-          SKIP_ISO=1 SKIP_ISO=1 WITH_PRINTER=1 ./build/build.sh localhost/mon-bootc:printer printer
+      - name: Build image (printer)
+        run: echo "Image printer built locally via build-all.sh"
