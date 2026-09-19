@@ -44,6 +44,11 @@ ARG WITH_NVIDIA=0
 ARG WITH_ROCM=0
 ARG WITH_PRINTER=0
 
+# Speed up DNF: force fastest mirror + parallel downloads (avoid slow/404 mirrors)
+RUN sed -i 's/^fastestmirror.*/fastestmirror=1/' /etc/dnf/dnf.conf \
+    && echo 'max_parallel_downloads=10' >> /etc/dnf/dnf.conf \
+    && echo 'keepcache=True' >> /etc/dnf/dnf.conf
+
 # ######################################################################
 # A. NOYAU — étape 1
 # ######################################################################
