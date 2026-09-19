@@ -93,6 +93,14 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
+# S'assurer que le tag demandé existe bien dans le stockage local.
+# Sans cela, bootc-image-builder peut chercher base:latest sur Docker Hub.
+sudo podman image inspect "$IMAGE" >/dev/null 2>&1 || {
+  echo "ERREUR : image introuvable dans le stockage local : $IMAGE"
+  echo "Vérifiez que podman a construit l'image avec le tag exact."
+  exit 1
+}
+
 # --- build-args selon la saveur ---
 WITH_NVIDIA=0; WITH_ROCM=0; WITH_PRINTER=0
 case "$FLAVOR" in
@@ -136,10 +144,12 @@ echo "    ISO à générer dans $OUTPUT_DIR/"
 echo "    Anaconda demandera : langue, clavier, DISQUE, user."
 echo ""
 
-sudo podman run --rm -i \
-  --privileged \
-  --pull=never \
-  --security-opt label=type:unconfined_t \
+# Nettoyage forcé des containers Podman (erreur "acquiring lock ... file exists")
+sudo podman kill --all 2>/dev/null || true
+sudo podman rm -f --all 2>/dev/null || true
+sudo podman system prune -f --volumes 2>/dev/null || true
+
+CID=$(sudo podman create --privileged --pull=newer \
   -v "$OUTPUT_DIR:/output" \
   -v "$CONFIG:/config.toml:ro" \
   -v /var/lib/containers/storage:/var/lib/containers/storage \
@@ -147,7 +157,21 @@ sudo podman run --rm -i \
   --type anaconda-iso \
   --rootfs btrfs \
   --config /config.toml \
-  "$IMAGE"
+  "$IMAGE")
+echo "Conteneur ISO: $CID"
+sudo podman start "$CID"
+sudo podman wait "$CID"
+
+# Copier l'ISO depuis le conteneur vers le dossier output
+if sudo podman cp "$CID:/run/osbuild/tree/install.iso" "$OUTPUT_DIR/install.iso" 2>/dev/null; then
+  echo "ISO copiée dans $OUTPUT_DIR/install.iso"
+else
+  echo "AVERTISMENT: copie ISO manuelle nécessaire, vérifiez /run/osbuild/tree/install.iso"
+fi
+sudo podman rm "$CID"
+
+# Permettre à l'utilisateur courant de manipuler l'ISO produite
+sudo chown -R "$(id -u):$(id -g)" "$OUTPUT_DIR" 2>/dev/null || true
 
 echo ""
 echo "==> [2/2] ISO $FLAVOR générée dans $OUTPUT_DIR/"

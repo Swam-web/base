@@ -1,0 +1,18 @@
+# Build artifacts
+build/output/
+*.iso
+
+# Generated docs (PDF from markdown — régénérable via pandoc)
+docs/*.pdf
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VM
+*.qcow2
