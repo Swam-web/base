@@ -144,11 +144,18 @@ echo "    ISO à générer dans $OUTPUT_DIR/"
 echo "    Anaconda demandera : langue, clavier, DISQUE, user."
 echo ""
 
-bootc-image-builder --type anaconda-iso \
+sudo podman run --rm -i \
+  --privileged \
+  --pull=newer \
+  --security-opt label=type:unconfined_t \
+  -v "$OUTPUT_DIR:/output" \
+  -v "$CONFIG:/config.toml:ro" \
+  -v /var/lib/containers/storage:/var/lib/containers/storage \
+  "$BIB_IMAGE" \
+  --type anaconda-iso \
   --rootfs btrfs \
   --config /config.toml \
-  --output "$OUTPUT_DIR" \
-  "$IMAGE"
+  "containers-storage:$IMAGE"
 
 echo ""
 echo "==> [2/2] ISO $FLAVOR générée dans $OUTPUT_DIR/"
