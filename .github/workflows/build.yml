@@ -31,6 +31,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install Podman
+        run: |
+          sudo -S -p '' apt-get update -qq
+          sudo -S -p '' apt-get install -y -qq podman
+
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -40,16 +45,17 @@ jobs:
 
       - name: Build and push image (${{ matrix.flavor }})
         run: |
-          docker build \
+          podman build \
             --build-arg WITH_NVIDIA=${{ matrix.nvidia }} \
             --build-arg WITH_ROCM=${{ matrix.rocm }} \
             --build-arg WITH_PRINTER=${{ matrix.printer }} \
             --file Containerfile \
             --tag ghcr.io/swam-web/mon-bootc:${{ matrix.flavor }} .
-          docker push ghcr.io/swam-web/mon-bootc:${{ matrix.flavor }}
+          podman push ghcr.io/swam-web/mon-bootc:${{ matrix.flavor }}
 
       - name: Generate ISO (${{ matrix.flavor }})
         uses: osbuild/bootc-image-builder-action@v0.0.2
+        id: build-iso
         with:
           image: ghcr.io/swam-web/mon-bootc:${{ matrix.flavor }}
           types: |
