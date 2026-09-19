@@ -6,30 +6,59 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  build-base:
+  build-iso:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flavor: base
+            nvidia: "0"
+            rocm: "0"
+            printer: "0"
+          - flavor: nvidia
+            nvidia: "1"
+            rocm: "0"
+            printer: "0"
+          - flavor: rocm
+            nvidia: "0"
+            rocm: "1"
+            printer: "0"
+          - flavor: printer
+            nvidia: "0"
+            rocm: "0"
+            printer: "1"
     steps:
       - uses: actions/checkout@v4
-      - name: Build image (base)
-        run: echo "Image base built locally via build-all.sh"
-  
-  build-nvidia:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build image (nvidia)
-        run: echo "Image nvidia built locally via build-all.sh"
-  
-  build-rocm:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build image (rocm)
-        run: echo "Image rocm built locally via build-all.sh"
-  
-  build-printer:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build image (printer)
-        run: echo "Image printer built locally via build-all.sh"
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image (${{ matrix.flavor }})
+        run: |
+          docker build \
+            --build-arg WITH_NVIDIA=${{ matrix.nvidia }} \
+            --build-arg WITH_ROCM=${{ matrix.rocm }} \
+            --build-arg WITH_PRINTER=${{ matrix.printer }} \
+            --file Containerfile \
+            --tag ghcr.io/swam-web/mon-bootc:${{ matrix.flavor }} .
+          docker push ghcr.io/swam-web/mon-bootc:${{ matrix.flavor }}
+
+      - name: Generate ISO (${{ matrix.flavor }})
+        uses: osbuild/bootc-image-builder-action@v0.0.2
+        with:
+          image: ghcr.io/swam-web/mon-bootc:${{ matrix.flavor }}
+          types: |
+            anaconda-iso
+          config-file: ./build/config.toml
+          rootfs: btrfs
+
+      - name: Upload ISO (${{ matrix.flavor }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: mon-bootc-${{ matrix.flavor }}
+          path: ${{ steps.build-iso.outputs.output-directory }}
