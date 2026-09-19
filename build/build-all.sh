@@ -93,6 +93,14 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
+# S'assurer que le tag demandé existe bien dans le stockage local.
+# Sans cela, bootc-image-builder peut chercher base:latest sur Docker Hub.
+sudo podman image inspect "$IMAGE" >/dev/null 2>&1 || {
+  echo "ERREUR : image introuvable dans le stockage local : $IMAGE"
+  echo "Vérifiez que podman a construit l'image avec le tag exact."
+  exit 1
+}
+
 # --- build-args selon la saveur ---
 WITH_NVIDIA=0; WITH_ROCM=0; WITH_PRINTER=0
 case "$FLAVOR" in
@@ -136,17 +144,10 @@ echo "    ISO à générer dans $OUTPUT_DIR/"
 echo "    Anaconda demandera : langue, clavier, DISQUE, user."
 echo ""
 
-sudo podman run --rm -i \
-  --privileged \
-  --pull=never \
-  --security-opt label=type:unconfined_t \
-  -v "$OUTPUT_DIR:/output" \
-  -v "$CONFIG:/config.toml:ro" \
-  -v /var/lib/containers/storage:/var/lib/containers/storage \
-  "$BIB_IMAGE" \
-  --type anaconda-iso \
+bootc-image-builder --type anaconda-iso \
   --rootfs btrfs \
   --config /config.toml \
+  --output "$OUTPUT_DIR" \
   "$IMAGE"
 
 echo ""
@@ -170,6 +171,7 @@ echo "    • $OUTPUT_DIR/*.iso"
 echo ""
 echo "  Prochaines étapes :"
 echo "    1. Tester l'ISO en VM (snapshot !)"
+echo "    2. Si OK → bootc switch --transport containers-storage $IMAGE"
 echo "    3. Vérifier : bootc status"
 echo ""
 echo "⚠️  Rappel : testez TOUJOURS en VM avant tout boot sur hardware."
