@@ -16,3 +16,10 @@ Thumbs.db
 
 # VM
 *.qcow2
+
+# Zsh config — tracked in repo for bootc bake
+# Zsh/.oh-my-zsh/      # UNCOMMENT to skip oh-my-zsh (huge + git deps)
+# Zsh/.config/          # UNCOMMENT to skip fastfetch config
+# Zsh/.p10k.zsh         # UNCOMMENT to skip p10k config
+# Zsh/.zshrc            # UNCOMMENT to skip zshrc
+# Zsh/.bashrc           # UNCOMMENT to skip bashrc

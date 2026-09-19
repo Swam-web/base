@@ -28,6 +28,7 @@ cd "$(cd "$(dirname "$0")" && pwd)/.."
 CONTAINERFILE="./Containerfile"
 CONFIG="./build/config.toml"
 OUTPUT_DIR="./build/output"
+STORAGE_SRC="/var/lib/containers/storage"
 
 # --- Arguments ---
 if [[ $# -ge 1 ]]; then
@@ -47,10 +48,10 @@ else
   echo "    4) printer  — + hplip/gui"
   echo "    5) full     — nvidia + rocm + printer"
   echo ""
-  read -rp "  Choix (1-5) : " CHOICE
+  read -rp "  Choix (1-5) [1] : " CHOICE
 
   case "$CHOICE" in
-    1) FLAVOR="base" ;;
+    1|"") FLAVOR="base" ;;
     2) FLAVOR="nvidia" ;;
     3) FLAVOR="rocm" ;;
     4) FLAVOR="printer" ;;
@@ -93,14 +94,6 @@ fi
 
 mkdir -p "$OUTPUT_DIR"
 
-# S'assurer que le tag demandé existe bien dans le stockage local.
-# Sans cela, bootc-image-builder peut chercher base:latest sur Docker Hub.
-sudo podman image inspect "$IMAGE" >/dev/null 2>&1 || {
-  echo "ERREUR : image introuvable dans le stockage local : $IMAGE"
-  echo "Vérifiez que podman a construit l'image avec le tag exact."
-  exit 1
-}
-
 # --- build-args selon la saveur ---
 WITH_NVIDIA=0; WITH_ROCM=0; WITH_PRINTER=0
 case "$FLAVOR" in
@@ -124,7 +117,8 @@ echo ""
 echo "==> [1/2] podman build (NVIDIA=$WITH_NVIDIA ROCM=$WITH_ROCM PRINTER=$WITH_PRINTER)..."
 echo ""
 
-sudo podman build --pull=newer \
+# Build sans sudo (rootless) — plus rapide + utilise le cache existant
+podman build --network=host \
   --build-arg "WITH_NVIDIA=$WITH_NVIDIA" \
   --build-arg "WITH_ROCM=$WITH_ROCM" \
   --build-arg "WITH_PRINTER=$WITH_PRINTER" \
@@ -142,35 +136,65 @@ echo "==> [2/2] bootc-image-builder --type anaconda-iso (INTERACTIF)..."
 echo ""
 echo "    ISO à générer dans $OUTPUT_DIR/"
 echo "    Anaconda demandera : langue, clavier, DISQUE, user."
+echo "    (patientez ~10-15 min — osbuild exécute le manifeste)"
 echo ""
 
-# Nettoyage forcé des containers Podman (erreur "acquiring lock ... file exists")
-sudo podman kill --all 2>/dev/null || true
-sudo podman rm -f --all 2>/dev/null || true
-sudo podman system prune -f --volumes 2>/dev/null || true
+# Export de l'image locale (rootless) → tarball
+echo "==> Export de l'image vers un tarball rootful..."
+TMP_TAR="${TMPDIR:-/tmp}/bootc-$$$$-$(date +%s).tar"
+# Fallback: use home partition if /tmp is too small
+if ! mkdir -p /home/christophe/.cache/bootc 2>/dev/null; then true; fi
+TMP_TAR="/home/christophe/.cache/bootc/export-$$.tar"
+podman save -o "$TMP_TAR" "$IMAGE"
 
-CID=$(sudo podman create --privileged --pull=newer \
+# Import sous root pour BIB (nécessite sudo pour --privileged)
+echo "==> Import de l'image sous root..."
+sudo podman load -i "$TMP_TAR"
+rm -f "$TMP_TAR"
+
+# Tag pour que BIB trouve l'image sous le bon nom
+sudo podman tag localhost/base:latest "$IMAGE"
+
+# Nettoyage FORCÉ des anciens containers (sans --volumes pour garder le storage)
+sudo podman rm -f --all 2>/dev/null || true
+
+# Nettoie TOTALEMENT output/ pour éviter les doublons d'ISO
+sudo rm -rf "$OUTPUT_DIR"
+mkdir -p "$OUTPUT_DIR"
+
+# Export OUTPUT_DIR + CONFIG pour le subshell sudo
+export OUTPUT_DIR
+export CONFIG
+
+# Crée output dir sous root (sinon BIB échoue à écrire manifest)
+sudo mkdir -p "$OUTPUT_DIR"
+sudo chown "$(id -u):$(id -g)" "$OUTPUT_DIR" 2>/dev/null || sudo chown root:root "$OUTPUT_DIR"
+
+# Lancement BIB avec --privileged (nécessite root pour osbuild)
+echo "==> Lancement de bootc-image-builder (patientez ~10-15 min)..."
+sudo podman run --rm --privileged \
   -v "$OUTPUT_DIR:/output" \
   -v "$CONFIG:/config.toml:ro" \
-  -v /var/lib/containers/storage:/var/lib/containers/storage \
+  -v "$STORAGE_SRC:/var/lib/containers/storage" \
   "$BIB_IMAGE" \
   --type anaconda-iso \
   --rootfs btrfs \
   --config /config.toml \
-  "$IMAGE")
-echo "Conteneur ISO: $CID"
-sudo podman start "$CID"
-sudo podman wait "$CID"
+  "$IMAGE"
 
-# Copier l'ISO depuis le conteneur vers le dossier output
-if sudo podman cp "$CID:/run/osbuild/tree/install.iso" "$OUTPUT_DIR/install.iso" 2>/dev/null; then
-  echo "ISO copiée dans $OUTPUT_DIR/install.iso"
+# Extraction de l'ISO (osbuild écrit dans bootiso/ sous le volume /output)
+if [[ -f "$OUTPUT_DIR/bootiso/install.iso" ]]; then
+  cp "$OUTPUT_DIR/bootiso/install.iso" "$OUTPUT_DIR/install.iso"
+  echo "✅ ISO générée : $OUTPUT_DIR/install.iso"
+  ISO_SIZE=$(du -h "$OUTPUT_DIR/install.iso" | cut -f1)
+  echo "   Taille : $ISO_SIZE"
 else
-  echo "AVERTISMENT: copie ISO manuelle nécessaire, vérifiez /run/osbuild/tree/install.iso"
+  echo "⚠️  AVERTISMENT : install.iso introuvable dans $OUTPUT_DIR/"
+  echo "   Vérifiez les logs osbuild ci-dessus."
+  echo "   Le manifeste est dans $OUTPUT_DIR/manifest-anaconda-iso.json"
 fi
-sudo podman rm "$CID"
 
-# Permettre à l'utilisateur courant de manipuler l'ISO produite
+# Permissions pour l'utilisateur courant
 sudo chown -R "$(id -u):$(id -g)" "$OUTPUT_DIR" 2>/dev/null || true
 
 echo ""
@@ -190,7 +214,7 @@ echo "  Image construite :"
 echo "    • $IMAGE"
 echo ""
 echo "  ISO générée :"
-echo "    • $OUTPUT_DIR/*.iso"
+echo "    • $OUTPUT_DIR/install.iso"
 echo ""
 echo "  Prochaines étapes :"
 echo "    1. Tester l'ISO en VM (snapshot !)"

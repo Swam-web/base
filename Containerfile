@@ -44,6 +44,17 @@ ARG WITH_NVIDIA=0
 ARG WITH_ROCM=0
 ARG WITH_PRINTER=0
 
+# Speed up DNF: force fastest mirror + parallel downloads + IPv4 + timeout + HK/SG mirror
+# Fedora metalink auto-résout vers miroirs locaux — le CDN choisit le chinois (lent).
+# Fix : on build avec --network=host pour DNS correct + fastestmirror=1 pour choisir
+# le mirror le plus rapide parmi ceux du metalink, timeout=6 pour échapper aux miroirs morts.
+RUN sed -i 's/^fastestmirror.*/fastestmirror=1/' /etc/dnf/dnf.conf \
+    && echo 'max_parallel_downloads=10' >> /etc/dnf/dnf.conf \
+    && echo 'keepcache=True' >> /etc/dnf/dnf.conf \
+    && echo 'ip_resolve=4' >> /etc/dnf/dnf.conf \
+    && echo 'timeout=6' >> /etc/dnf/dnf.conf \
+    && echo 'minrate=1' >> /etc/dnf/dnf.conf
+
 # ######################################################################
 # A. NOYAU — étape 1
 # ######################################################################
@@ -586,34 +597,16 @@ bootc container lint
 EORUN
 # NOTE 1er boot user existant : chsh -s /bin/zsh (puis relog).
 
-# 20. Zsh plugins + thème powerlevel10k (pinnés, vérifiés le 15/09/2026)
-# omz sans tag upstream -> pinné commit fcf9659, p10k tag v1.9.1, fonts RPM.
-RUN <<EORUN
-set -xeuo pipefail
-dnf -y install git powerline-fonts
-OMZ_HASH="fcf965912c4adf73ead540e7409bb42ec6e31b45"
-rm -rf /etc/skel/.oh-my-zsh
-git init -q /etc/skel/.oh-my-zsh
-git -C /etc/skel/.oh-my-zsh remote add origin https://github.com/ohmyzsh/ohmyzsh.git
-git -C /etc/skel/.oh-my-zsh fetch -q --depth 1 origin "$OMZ_HASH"
-git -C /etc/skel/.oh-my-zsh checkout -q FETCH_HEAD
-git clone -q --depth 1 --branch v1.9.1 https://github.com/romkatv/powerlevel10k.git /etc/skel/.oh-my-zsh/custom/themes/powerlevel10k
-cat > /etc/skel/.zshrc <<'EOF'
-export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="powerlevel10k/powerlevel10k"
-zstyle ':omz:update' mode disabled
-plugins=(git sudo dnf colored-man-pages command-not-found)
-source $ZSH/oh-my-zsh.sh
-HISTFILE=~/.zsh_history
-HISTSIZE=5000
-SAVEHIST=5000
-setopt APPEND_HISTORY SHARE_HISTORY HIST_IGNORE_DUPS
-[[ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
-[[ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] && source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
-EOF
-chmod 644 /etc/skel/.zshrc
-dnf clean all
-bootc container lint
-EORUN
+# 20. Zsh + oh-my-zsh + powerlevel10k — baké depuis ZSH:/home/christophe/Zsh
+# .zshrc, .p10k.zsh, .oh-my-zsh (plugins/themes), .config, .bashrc sauvés localement.
+COPY Zsh/.zshrc /etc/skel/.zshrc
+COPY Zsh/.p10k.zsh /etc/skel/.p10k.zsh
+COPY Zsh/.bashrc /etc/skel/.bashrc
+COPY Zsh/.oh-my-zsh /etc/skel/.oh-my-zsh
+RUN chmod 755 /etc/skel/.zshrc /etc/skel/.p10k.zsh /etc/skel/.bashrc \
+    && find /etc/skel/.oh-my-zsh -type f -exec chmod 644 {} \; \
+    && find /etc/skel/.oh-my-zsh -type d -exec chmod 755 {} \; \
+    && rm -rf /etc/skel/.oh-my-zsh/.git \
+    && dnf clean all \
+    && bootc container lint
 # NOTE 1er boot : p10k configure (assistant thème, choisir une Powerline font dans GNOME Terminal).
