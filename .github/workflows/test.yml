@@ -1,0 +1,31 @@
+name: Test build bootc
+
+on:
+  push:
+    branches: [master, "refactor/**"]
+  pull_request:
+    branches: [master]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check structure
+        run: |
+          test -f Containerfile
+          test -f build/config.toml
+          test -f build/build-all.sh
+          test -f build/FLAVOR
+          test -d host-scripts/
+          test -d docs/
+          echo "Structure OK"
+      - name: Check scripts executable
+        run: |
+          for f in host-scripts/*.sh; do
+            test -x "$f" && echo "$f OK" || echo "$f NOT executable"
+          done
+      - name: Validate TOML
+        run: |
+          python3 -c "import tomllib; tomllib.load(open('build/config.toml','rb'))"
+          echo "config.toml OK"
