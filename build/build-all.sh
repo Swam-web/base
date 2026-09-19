@@ -144,6 +144,10 @@ echo "    ISO à générer dans $OUTPUT_DIR/"
 echo "    Anaconda demandera : langue, clavier, DISQUE, user."
 echo ""
 
+# Nettoyage des verrous Podman (erreur "acquiring lock ... file exists")
+sudo podman system prune -f --volumes 2>/dev/null || true
+sudo podman container prune -f 2>/dev/null || true
+
 sudo podman run --rm -i \
   --privileged \
   --pull=newer \
