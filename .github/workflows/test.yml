@@ -1,4 +1,4 @@
-name: Test build bootc
+name: Test build bootc — all flavors
 
 on:
   push:
@@ -7,19 +7,20 @@ on:
     branches: [master]
 
 jobs:
-  validate:
+  validate-structure:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check structure
+      - name: Check files exist
         run: |
           test -f Containerfile
           test -f build/config.toml
           test -f build/build-all.sh
           test -f build/FLAVOR
+          test -f README.md
+          test -f .gitignore
           test -d host-scripts/
           test -d docs/
-          echo "Structure OK"
       - name: Check scripts executable
         run: |
           for f in host-scripts/*.sh; do
@@ -29,3 +30,43 @@ jobs:
         run: |
           python3 -c "import tomllib; tomllib.load(open('build/config.toml','rb'))"
           echo "config.toml OK"
+
+  build-flavors:
+    needs: validate-structure
+    strategy:
+      matrix:
+        flavor: [base, nvidia, rocm, printer]
+        include:
+          - flavor: base
+            args: "WITH_NVIDIA=0 WITH_ROCM=0 WITH_PRINTER=0"
+          - flavor: nvidia
+            args: "WITH_NVIDIA=1 WITH_ROCM=0 WITH_PRINTER=0"
+          - flavor: rocm
+            args: "WITH_NVIDIA=0 WITH_ROCM=1 WITH_PRINTER=0"
+          - flavor: printer
+            args: "WITH_NVIDIA=0 WITH_ROCM=0 WITH_PRINTER=1"
+      fail-fast: false
+      max-parallel: 1
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Podman
+        run: |
+          sudo apt-get update && sudo apt-get install -y podman
+          podman --version
+      - name: Build bootc flavor ${{ matrix.flavor }}
+        run: |
+          echo "==> Building flavor: ${{ matrix.flavor }}"
+          eval "${{ matrix.args }}"
+          podman build \
+            --build-arg WITH_NVIDIA=$WITH_NVIDIA \
+            --build-arg WITH_ROCM=$WITH_ROCM \
+            --build-arg WITH_PRINTER=$WITH_PRINTER \
+            -t localhost/mon-bootc:${{ matrix.flavor }} \
+            -f Containerfile .
+      - name: Lint bootc container
+        run: |
+          podman run --rm --entrypoint "" \
+            localhost/mon-bootc:${{ matrix.flavor }} \
+            bootc container lint
